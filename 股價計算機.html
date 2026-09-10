@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股市當沖計算機</title>
+    <style>
+        body {
+            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            background-color: #f3f4f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 900px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+
+        .card-header {
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            color: #1f2937;
+        }
+
+        .card-header svg {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            fill: #3b82f6;
+        }
+
+        .card-header.green-icon svg {
+            fill: #10b981;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 14px;
+            color: #6b7280;
+            margin: 15px 0 10px 0;
+        }
+
+        /* Segmented Control Buttons */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn-group button {
+            flex: 1;
+            padding: 10px;
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #374151;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-group button.active.blue {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .btn-group button.active.red {
+            background-color: #dc2626;
+            color: white;
+            border-color: #dc2626;
+        }
+
+        .btn-group button.active.green {
+            background-color: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+
+        /* Input Fields */
+        .input-wrapper {
+            position: relative;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            padding: 12px 15px;
+            font-size: 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        .input-wrapper input:focus {
+            border-color: #3b82f6;
+        }
+
+        .input-wrapper .suffix {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+            pointer-events: none;
+            border-left: 1px solid #e5e7eb;
+            padding-left: 15px;
+            background-color: #f9fafb;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            border-radius: 0 6px 6px 0;
+        }
+
+        /* Toggle Switch */
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f9fafb;
+            padding: 12px 20px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        
+        .toggle-text {
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .toggle-subtext {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 4px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #3b82f6;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        /* Submit Button */
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .submit-btn:hover {
+            background-color: #2563eb;
+        }
+
+        /* Table Styles */
+        .result-container {
+            display: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        th {
+            color: #4b5563;
+            font-weight: normal;
+            padding: 15px 10px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        td {
+            padding: 15px 10px;
+            border-bottom: 1px solid #f3f4f6;
+            color: #4b5563;
+        }
+
+        .expand-row td {
+            padding: 10px;
+            color: #3b82f6;
+            cursor: pointer;
+            font-weight: bold;
+            background-color: #f9fafb;
+        }
+
+        .highlight-row {
+            background-color: #fef08a !important;
+        }
+
+        .text-red { color: #dc2626 !important; font-weight: bold; }
+        .text-green { color: #10b981 !important; font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+<!-- 輸入區塊 -->
+<div class="card">
+    <div class="card-header">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-6 14H7v-2h6v2zm0-4H7v-2h6v2zm6-4H7V7h12v2z"/></svg>
+        計算機
+    </div>
+
+    <div class="section-title">交易類型</div>
+    <div class="btn-group">
+        <button type="button" id="btnCash" class="active blue" onclick="setTradeType('cash')">個股當沖</button>
+        <button type="button" id="btnMargin" onclick="setTradeType('margin')">融資融券當沖</button>
+    </div>
+
+    <div class="section-title">開倉價格</div>
+    <div class="input-wrapper">
+        <input type="number" id="openPrice" value="100" step="0.01">
+        <div class="suffix">元</div>
+    </div>
+
+    <div class="section-title">交易數量</div>
+    <div class="input-wrapper">
+        <input type="number" id="qty" value="1">
+        <div class="suffix">張</div>
+    </div>
+
+    <div class="toggle-row">
+        <div>
+            <div class="toggle-text">以張為單位</div>
+            <div class="toggle-subtext">提示：1 張 = 1000 股</div>
+        </div>
+        <label class="toggle-switch">
+            <input type="checkbox" id="unitToggle" checked>
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="section-title">交易方向</div>
+    <div class="btn-group">
+        <button type="button" id="btnLong" class="active red" onclick="setDirection('long')">↗ 做多 (買進)</button>
+        <button type="button" id="btnShort" onclick="setDirection('short')">↘ 做空 (賣出)</button>
+    </div>
+
+    <button class="submit-btn" onclick="generateTable()">計算</button>
+</div>
+
+<!-- 結果區塊 -->
+<div class="card result-container" id="resultCard">
+    <div class="card-header green-icon">
+        <svg viewBox="0 0 24 24"><path d="M3 3v18h18V3H3zm16 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/></svg>
+        計算結果
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>買入價格</th>
+                <th>賣出價格</th>
+                <th>證交稅</th>
+                <th>總手續費</th>
+                <th>獲利</th>
+                <th>報酬率</th>
+            </tr>
+        </thead>
+        <tbody id="resultBody">
+            <!-- 內容由 JS 產生 -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+    let direction = 'long';
+    let tradeType = 'cash'; // 預設為個股當沖
+
+    function setTradeType(type) {
+        tradeType = type;
+        const btnCash = document.getElementById('btnCash');
+        const btnMargin = document.getElementById('btnMargin');
+        
+        if (type === 'cash') {
+            btnCash.className = 'active blue';
+            btnMargin.className = '';
+        } else {
+            btnCash.className = '';
+            btnMargin.className = 'active blue';
+        }
+    }
+
+    function setDirection(dir) {
+        direction = dir;
+        const btnLong = document.getElementById('btnLong');
+        const btnShort = document.getElementById('btnShort');
+        
+        if (dir === 'long') {
+            btnLong.className = 'active red';
+            btnShort.className = '';
+        } else {
+            btnLong.className = '';
+            btnShort.className = 'active green';
+        }
+    }
+
+    // 取得台股股價精確的下一個跳動價位
+    function getNextPrice(p, isUp) {
+        if (isUp) {
+            if (p < 10) return p + 0.01;
+            if (p < 50) return p + 0.05;
+            if (p < 100) return p + 0.1;
+            if (p < 500) return p + 0.5;
+            if (p < 1000) return p + 1;
+            return p + 5;
+        } else {
+            if (p <= 10) return p - 0.01;
+            if (p <= 50) return p - 0.05;
+            if (p <= 100) return p - 0.1;
+            if (p <= 500) return p - 0.5;
+            if (p <= 1000) return p - 1;
+            return p - 5;
+        }
+    }
+
+    // 產生股價陣列 (以開倉價為中心，產生上下各 15 個檔位)
+    function generatePrices(openPrice) {
+        let prices = [openPrice];
+        
+        // 往上推 15 檔
+        let currentUp = openPrice;
+        for (let i = 0; i < 15; i++) {
+            currentUp = parseFloat(getNextPrice(currentUp, true).toFixed(2));
+            prices.unshift(currentUp); 
+        }
+
+        // 往下推 15 檔
+        let currentDown = openPrice;
+        for (let i = 0; i < 15; i++) {
+            if (currentDown <= 0) break;
+            currentDown = parseFloat(getNextPrice(currentDown, false).toFixed(2));
+            if (currentDown > 0) {
+                prices.push(currentDown);
+            }
+        }
+        
+        return prices;
+    }
+
+    function generateTable() {
+        const openPrice = parseFloat(document.getElementById('openPrice').value);
+        const qtyInput = parseFloat(document.getElementById('qty').value);
+        const isUnitZhang = document.getElementById('unitToggle').checked;
+
+        if (isNaN(openPrice) || isNaN(qtyInput) || qtyInput <= 0) {
+            alert("請輸入正確的數值");
+            return;
+        }
+
+        const shares = isUnitZhang ? qtyInput * 1000 : qtyInput;
+        const prices = generatePrices(openPrice);
+        const tbody = document.getElementById('resultBody');
+        tbody.innerHTML = '';
+
+        prices.forEach(closePrice => {
+            let buyPrice, sellPrice;
+
+            if (direction === 'long') {
+                buyPrice = openPrice;
+                sellPrice = closePrice;
+            } else {
+                sellPrice = openPrice;
+                buyPrice = closePrice;
+            }
+
+            const buyAmount = buyPrice * shares;
+            const sellAmount = sellPrice * shares;
+
+            // 依據使用者設定: 手續費 0.1425%, 證交稅 0.3%
+            const buyFee = Math.round(buyAmount * 0.001425);
+            const sellFee = Math.round(sellAmount * 0.001425);
+            const tax = Math.round(sellAmount * 0.003); 
+            
+            let shortFee = 0;
+            // 只有在「融資融券當沖」且「做空」時，才計算 0.1% 的融券費
+            if (direction === 'short' && tradeType === 'margin') {
+                shortFee = Math.round(sellAmount * 0.001); 
+            }
+
+            const totalFee = buyFee + sellFee + shortFee; // 表格中的總手續費包含融券費(如果有)
+            const profit = sellAmount - buyAmount - totalFee - tax;
+            
+            const costBasis = direction === 'long' ? buyAmount : sellAmount;
+            const roi = ((profit / costBasis) * 100).toFixed(2);
+
+            const isBaseRow = (closePrice === openPrice);
+            let rowClass = isBaseRow ? 'highlight-row' : '';
+            
+            let profitClass = profit > 0 ? 'text-red' : (profit < 0 ? 'text-green' : '');
+            let profitStr = profit > 0 ? `+${profit.toLocaleString()}` : profit.toLocaleString();
+            let roiStr = profit > 0 ? `+${roi}%` : `${roi}%`;
+
+            const tr = document.createElement('tr');
+            tr.className = rowClass;
+            tr.innerHTML = `
+                <td>${buyPrice.toFixed(2).replace(/\.00$/, '')}</td>
+                <td>${sellPrice.toFixed(2).replace(/\.00$/, '')}</td>
+                <td>${tax.toLocaleString()}</td>
+                <td>${totalFee.toLocaleString()}</td>
+                <td class="${profitClass}">${profitStr}</td>
+                <td class="${profitClass}">${roiStr}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('resultCard').style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
