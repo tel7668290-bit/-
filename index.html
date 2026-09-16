@@ -267,7 +267,44 @@
         .text-red { color: #dc2626 !important; font-weight: bold; }
         .text-green { color: #10b981 !important; font-weight: bold; }
 
-    </style>
+    
+        /* Custom ROI Styles */
+        .custom-roi-box {
+            background-color: #f9fafb;
+            border: 1px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .custom-roi-details {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .roi-detail-item {
+            background: #fff;
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+            flex: 1;
+            min-width: 120px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+        .roi-detail-title {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+        .roi-detail-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #374151;
+        }
+
+</style>
 </head>
 <body>
 
@@ -322,6 +359,18 @@
         <svg viewBox="0 0 24 24"><path d="M3 3v18h18V3H3zm16 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/></svg>
         計算結果
     </div>
+
+    <div class="custom-roi-box">
+        <div class="section-title" style="margin-top: 0;">自訂目標報酬率 (%) 試算</div>
+        <div class="input-wrapper" style="max-width: 200px; margin: 0 auto 10px auto;">
+            <input type="number" id="customROI" value="2" step="0.1" oninput="calculateCustomROI()">
+            <div class="suffix">%</div>
+        </div>
+        <div id="customROIResult">
+            <!-- JS 生成 -->
+        </div>
+    </div>
+
     
     <div class="table-scroll">
         <table>
@@ -484,7 +533,88 @@
         });
 
         document.getElementById('resultCard').style.display = 'block';
+        calculateCustomROI();
     }
+
+    function calculateCustomROI() {
+        const openPrice = parseFloat(document.getElementById('openPrice').value);
+        const qtyInput = parseFloat(document.getElementById('qty').value);
+        const isUnitZhang = document.getElementById('unitToggle').checked;
+        const targetROI = parseFloat(document.getElementById('customROI').value);
+
+        if (isNaN(openPrice) || isNaN(qtyInput) || qtyInput <= 0 || isNaN(targetROI)) {
+            return;
+        }
+
+        const shares = isUnitZhang ? qtyInput * 1000 : qtyInput;
+        
+        let buyAmount, sellAmount, costBasis;
+        let targetClosePrice = 0;
+        
+        if (direction === 'long') {
+            buyAmount = openPrice * shares;
+            costBasis = buyAmount;
+            const targetProfit = costBasis * (targetROI / 100);
+            const buyFee = Math.round(buyAmount * 0.001425);
+            
+            // P_close = (Profit + Amount_buy + Fee_buy) / (shares * (1 - 0.001425 - 0.003))
+            const exactSellAmount = (targetProfit + buyAmount + buyFee) / (1 - 0.001425 - 0.003);
+            targetClosePrice = exactSellAmount / shares;
+        } else {
+            sellAmount = openPrice * shares;
+            costBasis = sellAmount;
+            const targetProfit = costBasis * (targetROI / 100);
+            const sellFee = Math.round(sellAmount * 0.001425);
+            const tax = Math.round(sellAmount * 0.003);
+            let shortFee = (tradeType === 'margin') ? Math.round(sellAmount * 0.001) : 0;
+            
+            // P_close = (Amount_sell - Fee_sell - Tax - Fee_short - Profit) / (shares * (1 + 0.001425))
+            const exactBuyAmount = (sellAmount - sellFee - tax - shortFee - targetProfit) / (1 + 0.001425);
+            targetClosePrice = exactBuyAmount / shares;
+        }
+        
+        targetClosePrice = Math.max(0, targetClosePrice);
+        
+        // 帶回重新計算精確數值(含四捨五入)
+        let displayBuyPrice = direction === 'long' ? openPrice : targetClosePrice;
+        let displaySellPrice = direction === 'long' ? targetClosePrice : openPrice;
+        
+        const actBuyAmount = displayBuyPrice * shares;
+        const actSellAmount = displaySellPrice * shares;
+        
+        const actBuyFee = Math.round(actBuyAmount * 0.001425);
+        const actSellFee = Math.round(actSellAmount * 0.001425);
+        const actTax = Math.round(actSellAmount * 0.003);
+        let actShortFee = (direction === 'short' && tradeType === 'margin') ? Math.round(actSellAmount * 0.001) : 0;
+        
+        const actTotalFee = actBuyFee + actSellFee + actShortFee;
+        const actProfit = actSellAmount - actBuyAmount - actTotalFee - actTax;
+        
+        let profitClass = actProfit > 0 ? 'text-red' : (actProfit < 0 ? 'text-green' : '');
+        let profitStr = actProfit > 0 ? `+${actProfit.toLocaleString(undefined, {maximumFractionDigits:0})}` : actProfit.toLocaleString(undefined, {maximumFractionDigits:0});
+
+        document.getElementById('customROIResult').innerHTML = `
+            <div class="custom-roi-details">
+                <div class="roi-detail-item">
+                    <div class="roi-detail-title">目標平倉價</div>
+                    <div class="roi-detail-value">${targetClosePrice.toFixed(2)}</div>
+                </div>
+                <div class="roi-detail-item">
+                    <div class="roi-detail-title">預估獲利</div>
+                    <div class="roi-detail-value ${profitClass}">${profitStr}</div>
+                </div>
+                <div class="roi-detail-item">
+                    <div class="roi-detail-title">總手續費</div>
+                    <div class="roi-detail-value">${actTotalFee.toLocaleString()}</div>
+                </div>
+                <div class="roi-detail-item">
+                    <div class="roi-detail-title">證交稅</div>
+                    <div class="roi-detail-value">${actTax.toLocaleString()}</div>
+                </div>
+            </div>
+        `;
+    }
+
 </script>
 
 </body>
